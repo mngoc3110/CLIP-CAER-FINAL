@@ -20,7 +20,7 @@ python main.py \
     --image-size 224 \
     --seed 42 \
     --print-freq 10 \
-    --root-dir /content/drive/MyDrive/khoaluan/Dataset/RAER \
+    --root-dir /content/drive/MyDrive/khoaluan/Dataset \
     --train-annotation /content/drive/MyDrive/khoaluan/Dataset/RAER/annotation/train_80.txt \
     --val-annotation /content/drive/MyDrive/khoaluan/Dataset/RAER/annotation/val_20.txt \
     --test-annotation /content/drive/MyDrive/khoaluan/Dataset/RAER/annotation/test.txt \
