@@ -47,7 +47,14 @@ Mô hình được huấn luyện với một hàm loss tổng hợp và nhiều
 - **Loss Warmup & Ramp-up:** Trọng số của MI loss và DC loss được tăng dần trong quá trình huấn luyện để tăng tính ổn định, được điều khiển bởi các tham số `--mi-warmup`, `--mi-ramp`, `--dc-warmup`, `--dc-ramp`.
 - **Automatic Mixed Precision (AMP):** Tăng tốc độ huấn luyện và giảm bộ nhớ GPU bằng cách sử dụng độ chính xác 16-bit. Kích hoạt bằng cờ `--use-amp`.
 
-### 7. Logging chi tiết
+### 7. Huấn luyện theo giai đoạn (Staged Training)
+Để đảm bảo quá trình huấn luyện ổn định hơn và hội tụ tốt hơn cho các mô hình phức tạp, kỹ thuật huấn luyện theo giai đoạn đã được triển khai. Quá trình này chia việc huấn luyện thành ba giai đoạn chính, mỗi giai đoạn tập trung vào việc huấn luyện một tập hợp các tham số khác nhau của mô hình:
+
+-   **Giai đoạn 1: Huấn luyện Prompt Learner.** Chỉ huấn luyện các prompt có thể học (`learnable prompt`). Tất cả các phần khác của mô hình (bộ mã hóa ảnh, adapter, các lớp temporal) sẽ bị đóng băng. Mục tiêu là giúp các prompt text học cách liên kết với các đặc trưng thị giác cơ bản một cách ổn định.
+-   **Giai đoạn 2: Huấn luyện Adapter và các Module Temporal.** Prompt learner đã được huấn luyện và bộ mã hóa ảnh được đóng băng, sau đó Adapter, Temporal Models và lớp Fusion được huấn luyện. Giai đoạn này giúp các module thị giác học cách trích xuất các đặc trưng không gian-thời gian quan trọng.
+-   **Giai đoạn 3: Tinh chỉnh Toàn bộ (End-to-End Fine-tuning).** Tất cả các thành phần của mô hình được mở băng và huấn luyện cùng nhau với một learning rate rất nhỏ để tất cả các module có thể phối hợp với nhau một cách tốt nhất.
+
+### 8. Logging chi tiết
 Quá trình huấn luyện giờ đây sẽ in ra các thông tin chi tiết hơn sau mỗi epoch, bao gồm:
 -   `Train WAR`, `Train UAR` của epoch hiện tại.
 -   `Valid WAR`, `Valid UAR` của epoch hiện tại.
@@ -70,6 +77,9 @@ bash train_colab.sh
 ```
 
 Bạn có thể chỉnh sửa các file `.sh` hoặc truyền trực tiếp tham số vào `main.py`. Các tham số quan trọng đã được thêm vào:
+- `--staged-training`: (cờ) Bật chế độ huấn luyện theo giai đoạn.
+- `--epochs-stage1`, `--epochs-stage2`, `--epochs-stage3` (int): Số epoch cho mỗi giai đoạn.
+- `--lr-stage1`, `--lr-stage2`, `--lr-stage3` (float): Tốc độ học cho mỗi giai đoạn.
 - `--lambda_mi` (float): Trọng số cho Mutual Information loss.
 - `--lambda_dc` (float): Trọng số cho Decorrelation loss.
 - `--mi-warmup`, `--mi-ramp`, `--dc-warmup`, `--dc-ramp` (int): Các tham số cho việc warmup và ramp-up loss.

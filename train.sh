@@ -5,7 +5,7 @@ python main.py \
     --exper-name m2max_fastUAR70_vitb32_wrs_logitadj_tau05_mi07_dc12 \
     --gpu 0 \
     --staged-training \
-    --epochs-stage1 10 \
+    --epochs-stage1 1 \
     --epochs-stage2 20 \
     --epochs-stage3 20 \
     --lr-stage1 0.001 \
