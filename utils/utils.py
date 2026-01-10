@@ -11,6 +11,15 @@ from sklearn.metrics import confusion_matrix
 import tqdm
 from collections import Counter
 
+def get_loss_weight(epoch, warmup_epochs, ramp_up_epochs, final_weight):
+    """Calculates the weight for a loss based on a warmup and ramp-up schedule."""
+    if epoch < warmup_epochs:
+        return 0.0
+    elif epoch < warmup_epochs + ramp_up_epochs:
+        return final_weight * (epoch - warmup_epochs) / ramp_up_epochs
+    else:
+        return final_weight
+
 def get_class_counts(annotation_file):
     """Reads an annotation file and returns the number of samples for each class."""
     labels = []

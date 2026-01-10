@@ -72,21 +72,39 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
     
     print("Loading train data...")
     train_data = train_data_loader(
-        list_file=train_annotation_file_path, num_segments=args.num_segments,
+        root_dir=args.root_dir, list_file=train_annotation_file_path, num_segments=args.num_segments,
         duration=args.duration, image_size=args.image_size,dataset_name=args.dataset,
         bounding_box_face=args.bounding_box_face,bounding_box_body=args.bounding_box_body
     )
     
     print("Loading test data...")
     test_data = test_data_loader(
-        list_file=test_annotation_file_path, num_segments=args.num_segments,
+        root_dir=args.root_dir, list_file=test_annotation_file_path, num_segments=args.num_segments,
         duration=args.duration, image_size=args.image_size,
         bounding_box_face=args.bounding_box_face,bounding_box_body=args.bounding_box_body
     )
 
     print("Creating DataLoader instances...")
+    
+    sampler = None
+    shuffle = True
+    if args.use_weighted_sampler:
+        print("=> Using WeightedRandomSampler.")
+        class_counts = get_class_counts(args.train_annotation)
+        class_weights = 1. / torch.tensor(class_counts, dtype=torch.float)
+        
+        # Create a weight for each sample
+        sample_weights = []
+        with open(args.train_annotation, 'r') as f:
+            for line in f:
+                label = int(line.strip().split()[2]) -1 # label is 1-based
+                sample_weights.append(class_weights[label])
+        
+        sampler = torch.utils.data.WeightedRandomSampler(sample_weights, len(sample_weights))
+        shuffle = False # Sampler and shuffle are mutually exclusive
+
     train_loader = torch.utils.data.DataLoader(
-        train_data, batch_size=args.batch_size, shuffle=True,
+        train_data, batch_size=args.batch_size, shuffle=shuffle, sampler=sampler,
         num_workers=args.workers, pin_memory=True, drop_last=True
     )
     val_loader = torch.utils.data.DataLoader(

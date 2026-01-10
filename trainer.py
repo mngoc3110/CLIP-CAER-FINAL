@@ -5,14 +5,16 @@ import numpy as np
 from sklearn.metrics import confusion_matrix
 from tqdm import tqdm
 
-from utils.utils import AverageMeter, ProgressMeter
+from utils.utils import AverageMeter, ProgressMeter, get_loss_weight
 
 class Trainer:
     """A class that encapsulates the training and validation logic."""
     def __init__(self, model, criterion, optimizer, scheduler, device,log_txt_path, 
-                 mi_criterion=None, mi_loss_weight=0, 
-                 dc_criterion=None, dc_loss_weight=0,
-                 class_priors=None, logit_adj_tau=1.0):
+                 mi_criterion=None, lambda_mi=0, 
+                 dc_criterion=None, lambda_dc=0,
+                 class_priors=None, logit_adj_tau=1.0,
+                 mi_warmup=0, mi_ramp=0,
+                 dc_warmup=0, dc_ramp=0, use_amp=False):
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer
@@ -21,11 +23,18 @@ class Trainer:
         self.print_freq = 10
         self.log_txt_path = log_txt_path
         self.mi_criterion = mi_criterion
-        self.mi_loss_weight = mi_loss_weight
+        self.lambda_mi = lambda_mi
         self.dc_criterion = dc_criterion
-        self.dc_loss_weight = dc_loss_weight
+        self.lambda_dc = lambda_dc
         self.class_priors = class_priors
         self.logit_adj_tau = logit_adj_tau
+        self.mi_warmup = mi_warmup
+        self.mi_ramp = mi_ramp
+        self.dc_warmup = dc_warmup
+        self.dc_ramp = dc_ramp
+        self.use_amp = use_amp
+        if self.use_amp:
+            self.scaler = torch.cuda.amp.GradScaler()
 
     def _run_one_epoch(self, loader, epoch_str, is_train=True):
         """Runs one epoch of training or validation."""
@@ -65,31 +74,39 @@ class Trainer:
                 images_body = images_body.to(self.device)
                 target = target.to(self.device)
 
-                # Forward pass
-                output, learnable_text_features, hand_crafted_text_features = self.model(images_face, images_body)
-                
-                # Apply logit adjustment
-                if self.class_priors is not None:
-                    output = output + self.logit_adj_tau * torch.log(self.class_priors + 1e-12)
+                with torch.cuda.amp.autocast(enabled=self.use_amp):
+                    # Forward pass
+                    output, learnable_text_features, hand_crafted_text_features = self.model(images_face, images_body)
+                    
+                    # Apply logit adjustment
+                    if self.class_priors is not None:
+                        output = output + self.logit_adj_tau * torch.log(self.class_priors + 1e-12)
 
-                # Calculate loss
-                classification_loss = self.criterion(output, target)
-                loss = classification_loss
+                    # Calculate loss
+                    classification_loss = self.criterion(output, target)
+                    loss = classification_loss
 
-                if is_train and self.mi_criterion is not None:
-                    mi_loss = self.mi_criterion(learnable_text_features, hand_crafted_text_features)
-                    loss += self.mi_loss_weight * mi_loss
-                    mi_losses.update(mi_loss.item(), target.size(0))
+                    if is_train and self.mi_criterion is not None:
+                        mi_weight = get_loss_weight(int(epoch_str), self.mi_warmup, self.mi_ramp, self.lambda_mi)
+                        mi_loss = self.mi_criterion(learnable_text_features, hand_crafted_text_features)
+                        loss += mi_weight * mi_loss
+                        mi_losses.update(mi_loss.item(), target.size(0))
 
-                if is_train and self.dc_criterion is not None:
-                    dc_loss = self.dc_criterion(learnable_text_features)
-                    loss += self.dc_loss_weight * dc_loss
-                    dc_losses.update(dc_loss.item(), target.size(0))
+                    if is_train and self.dc_criterion is not None:
+                        dc_weight = get_loss_weight(int(epoch_str), self.dc_warmup, self.dc_ramp, self.lambda_dc)
+                        dc_loss = self.dc_criterion(learnable_text_features)
+                        loss += dc_weight * dc_loss
+                        dc_losses.update(dc_loss.item(), target.size(0))
 
                 if is_train:
                     self.optimizer.zero_grad()
-                    loss.backward()
-                    self.optimizer.step()
+                    if self.use_amp:
+                        self.scaler.scale(loss).backward()
+                        self.scaler.step(self.optimizer)
+                        self.scaler.update()
+                    else:
+                        loss.backward()
+                        self.optimizer.step()
 
                 # Record metrics
                 preds = output.argmax(dim=1)

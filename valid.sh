@@ -4,7 +4,7 @@ python main.py \
     --mode eval \
     --gpu 2 \
     --exper-name test_eval \
-    --eval-checkpoint outputs/train_baseline-[12-29]-[10:50]/model_best.pth \
+    --eval-checkpoint outputs/m2max_fastUAR70_vitb32_wrs_logitadj_tau05_mi07_dc12/model_best.pth \
     --root-dir /kaggle/input/raer-video-emotion-dataset/RAER \
     --test-annotation /kaggle/input/raer-annot/annotation/test.txt \
     --clip-path ViT-B/32 \

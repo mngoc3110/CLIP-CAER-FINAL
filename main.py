@@ -62,6 +62,7 @@ train_group = parser.add_argument_group('Training Control', 'Parameters to contr
 train_group.add_argument('--epochs', type=int, default=20, help='Total number of training epochs.')
 train_group.add_argument('--batch-size', type=int, default=8, help='Batch size for training and validation.')
 train_group.add_argument('--print-freq', type=int, default=10, help='Frequency of printing training logs.')
+train_group.add_argument('--use-amp', action='store_true', help='Use Automatic Mixed Precision.')
 
 # --- Optimizer & Learning Rate ---
 optim_group = parser.add_argument_group('Optimizer & LR', 'Hyperparameters for the optimizer and scheduler')
@@ -73,11 +74,18 @@ optim_group.add_argument('--weight-decay', type=float, default=1e-4, help='Weigh
 optim_group.add_argument('--momentum', type=float, default=0.9, help='Momentum for the SGD optimizer.')
 optim_group.add_argument('--milestones', nargs='+', type=int, default=[10, 15], help='Epochs at which to decay the learning rate.')
 optim_group.add_argument('--gamma', type=float, default=0.1, help='Factor for learning rate decay.')
-optim_group.add_argument('--mi-loss-weight', type=float, default=0.1, help='Weight for the Mutual Information loss.')
-optim_group.add_argument('--dc-loss-weight', type=float, default=0.1, help='Weight for the Decorrelation loss.')
+optim_group.add_argument('--lambda_mi', type=float, default=0.1, help='Weight for the Mutual Information loss.')
+optim_group.add_argument('--lambda_dc', type=float, default=0.1, help='Weight for the Decorrelation loss.')
+optim_group.add_argument('--mi-warmup', type=int, default=0, help='Warmup epochs for MI loss.')
+optim_group.add_argument('--mi-ramp', type=int, default=0, help='Ramp-up epochs for MI loss.')
+optim_group.add_argument('--dc-warmup', type=int, default=0, help='Warmup epochs for DC loss.')
+optim_group.add_argument('--dc-ramp', type=int, default=0, help='Ramp-up epochs for DC loss.')
 optim_group.add_argument('--class-balanced-loss', action='store_true', help='Use class-balanced loss.')
 optim_group.add_argument('--logit-adj', action='store_true', help='Use logit adjustment.')
 optim_group.add_argument('--logit-adj-tau', type=float, default=1.0, help='Temperature for logit adjustment.')
+optim_group.add_argument('--use-weighted-sampler', action='store_true', help='Use WeightedRandomSampler.')
+optim_group.add_argument('--label-smoothing', type=float, default=0.0, help='Label smoothing factor.')
+
 
 # --- Model & Input ---
 model_group = parser.add_argument_group('Model & Input', 'Parameters for model architecture and data handling')
@@ -162,7 +170,9 @@ def run_training(args: argparse.Namespace) -> None:
     # Loss and optimizer
     class_counts = get_class_counts(args.train_annotation)
     
-    if args.class_balanced_loss:
+    if args.label_smoothing > 0:
+        criterion = LSR2(e=args.label_smoothing, label_mode='class_descriptor').to(args.device)
+    elif args.class_balanced_loss:
         print("=> Using class-balanced loss.")
         class_weights = 1. / torch.tensor(class_counts, dtype=torch.float)
         class_weights = class_weights / class_weights.sum()
@@ -170,8 +180,8 @@ def run_training(args: argparse.Namespace) -> None:
     else:
         criterion = nn.CrossEntropyLoss().to(args.device)
 
-    mi_criterion = MILoss().to(args.device) if args.mi_loss_weight > 0 else None
-    dc_criterion = DCLoss().to(args.device) if args.dc_loss_weight > 0 else None
+    mi_criterion = MILoss().to(args.device) if args.lambda_mi > 0 else None
+    dc_criterion = DCLoss().to(args.device) if args.lambda_dc > 0 else None
 
     class_priors = None
     if args.logit_adj:
@@ -192,9 +202,11 @@ def run_training(args: argparse.Namespace) -> None:
     
     # Trainer
     trainer = Trainer(model, criterion, optimizer, scheduler, args.device, log_txt_path, 
-                    mi_criterion=mi_criterion, mi_loss_weight=args.mi_loss_weight,
-                    dc_criterion=dc_criterion, dc_loss_weight=args.dc_loss_weight,
-                    class_priors=class_priors, logit_adj_tau=args.logit_adj_tau)
+                    mi_criterion=mi_criterion, lambda_mi=args.lambda_mi,
+                    dc_criterion=dc_criterion, lambda_dc=args.lambda_dc,
+                    class_priors=class_priors, logit_adj_tau=args.logit_adj_tau,
+                    mi_warmup=args.mi_warmup, mi_ramp=args.mi_ramp,
+                    dc_warmup=args.dc_warmup, dc_ramp=args.dc_ramp, use_amp=args.use_amp)
     
     for epoch in range(start_epoch, args.epochs):
         inf = f'******************** Epoch: {epoch} ********************'
@@ -229,7 +241,7 @@ def run_training(args: argparse.Namespace) -> None:
 
         # Record metrics
         epoch_time = time.time() - start_time
-        recorder.update(epoch, train_los, train_war, val_los, val_war)
+        recorder.update(epoch, train_los, train_war, val_los, val_uar)
         recorder.plot_curve(log_curve_path)
         print(f'The best UAR: {best_uar:.4f}')
         print(f'An epoch time: {epoch_time:.2f}s\n')

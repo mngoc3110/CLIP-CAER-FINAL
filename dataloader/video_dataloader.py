@@ -30,7 +30,8 @@ class VideoRecord(object):
         return int(self._data[2])
 
 class VideoDataset(data.Dataset):
-    def __init__(self, list_file, num_segments, duration, mode, transform, image_size,bounding_box_face,bounding_box_body):
+    def __init__(self, root_dir, list_file, num_segments, duration, mode, transform, image_size,bounding_box_face,bounding_box_body):
+        self.root_dir = root_dir
         self.list_file = list_file
         self.duration = duration
         self.num_segments = num_segments
@@ -112,7 +113,7 @@ class VideoDataset(data.Dataset):
         #
         # Data Form: [video_id, num_frames, class_idx]
         #
-        self.video_list = [VideoRecord(item) for item in self.sample_list]  
+        self.video_list = [VideoRecord([os.path.join(self.root_dir, item[0])] + item[1:]) for item in self.sample_list]
         print(('video number:%d' % (len(self.video_list))))
 
     def _get_train_indices(self, record):
@@ -202,7 +203,7 @@ class VideoDataset(data.Dataset):
         return len(self.video_list)
 
 
-def train_data_loader(list_file, num_segments, duration, image_size,dataset_name,bounding_box_face,bounding_box_body):
+def train_data_loader(root_dir, list_file, num_segments, duration, image_size,dataset_name,bounding_box_face,bounding_box_body):
     if dataset_name == "RAER":
          train_transforms = torchvision.transforms.Compose([
             RandomRotation(4),
@@ -212,7 +213,7 @@ def train_data_loader(list_file, num_segments, duration, image_size,dataset_name
             ToTorchFormatTensor()])
             
     
-    train_data = VideoDataset(list_file=list_file,
+    train_data = VideoDataset(root_dir=root_dir, list_file=list_file,
                               num_segments=num_segments, #16
                               duration=duration, #1
                               mode='train',
@@ -224,13 +225,13 @@ def train_data_loader(list_file, num_segments, duration, image_size,dataset_name
     return train_data
 
 
-def test_data_loader(list_file, num_segments, duration, image_size,bounding_box_face,bounding_box_body):
+def test_data_loader(root_dir, list_file, num_segments, duration, image_size,bounding_box_face,bounding_box_body):
     
     test_transform = torchvision.transforms.Compose([GroupResize(image_size),
                                                      Stack(),
                                                      ToTorchFormatTensor()])
     
-    test_data = VideoDataset(list_file=list_file,
+    test_data = VideoDataset(root_dir=root_dir, list_file=list_file,
                              num_segments=num_segments,
                              duration=duration,
                              mode='test',
