@@ -2,8 +2,8 @@
 
 python main.py \
     --mode train \
-    --exper-name m2max_fastUAR70_vitb32_wrs_logitadj_tau05_mi07_dc12_colab \
-    --gpu 0 \
+    --exper-name m2max_fastUAR70_vitb32_wrs_logitadj_tau05_mi07_dc12 \
+    --gpu 2 \
     --epochs 50 \
     --batch-size 8 \
     --lr 0.0003 \
@@ -31,9 +31,16 @@ python main.py \
     --class-token-position end \
     --class-specific-contexts True \
     --load_and_tune_prompt_learner True \
-    --mi-loss-weight 0.7 \
-    --dc-loss-weight 1.2 \
+    --lambda_mi 0.7 \
+    --lambda_dc 1.2 \
+    --mi-warmup 3 \
+    --mi-ramp 8 \
+    --dc-warmup 5 \
+    --dc-ramp 10 \
     --slerp-weight 0.5 \
     --logit-adj \
     --logit-adj-tau 0.5 \
-    --temperature 0.07
+    --temperature 0.07 \
+    --use-weighted-sampler \
+    --label-smoothing 0.05 \
+    --use-amp
