@@ -6,10 +6,10 @@ python main.py \
     --gpu 0 \
     --epochs 50 \
     --batch-size 8 \
-    --lr 0.0003 \
+    --lr 0.00003 \
     --lr-image-encoder 1e-06 \
     --lr-prompt-learner 0.001 \
-    --lr-adapter 1e-4 \
+    --lr-adapter 1e-5 \
     --weight-decay 0.0001 \
     --momentum 0.9 \
     --milestones 20 35 \
