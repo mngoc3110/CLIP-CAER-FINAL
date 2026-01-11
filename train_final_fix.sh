@@ -2,17 +2,18 @@
 
 python main.py \
     --mode train \
-    --exper-name final_fix_replicate_user_baseline_kaggle_paths \
+    --exper-name final_fix_adamw_focal_sampler \
     --gpu 0 \
-    --epochs 20 \
+    --epochs 50 \
     --batch-size 8 \
-    --lr 0.003 \
-    --lr-image-encoder 1e-5 \
-    --lr-prompt-learner 0.001 \
-    --lr-adapter 0.001 \
+    --optimizer AdamW \
+    --lr 1e-5 \
+    --lr-image-encoder 0.0 \
+    --lr-prompt-learner 1e-5 \
+    --lr-adapter 1e-5 \
     --weight-decay 0.0001 \
     --momentum 0.9 \
-    --milestones 10 15 \
+    --milestones 20 35 \
     --gamma 0.1 \
     --temporal-layers 1 \
     --num-segments 16 \
@@ -28,7 +29,21 @@ python main.py \
     --bounding-box-face /kaggle/input/raer-video-emotion-dataset/RAER/bounding_box/face.json \
     --bounding-box-body /kaggle/input/raer-video-emotion-dataset/RAER/bounding_box/body.json \
     --text-type class_descriptor \
-    --contexts-number 8 \
+    --contexts-number 12 \
     --class-token-position end \
     --class-specific-contexts True \
-    --load_and_tune_prompt_learner True
+    --load_and_tune_prompt_learner True \
+    --lambda_mi 0.2 \
+    --lambda_dc 0.3 \
+    --mi-warmup 10 \
+    --mi-ramp 10 \
+    --dc-warmup 10 \
+    --dc-ramp 15 \
+    --slerp-weight 0.5 \
+    --temperature 0.2 \
+    --label-smoothing 0.02 \
+    --use-amp \
+    --class-balanced-loss \
+    --use-weighted-sampler \
+    --crop-body \
+    --grad-clip 1.0
