@@ -112,6 +112,14 @@ class Trainer:
                     # Forward pass
                     output, learnable_text_features, hand_crafted_text_features = self.model(images_face, images_body)
                     
+                    # For MI and DC losses, if using prompt ensembling, average the learnable_text_features
+                    processed_learnable_text_features = learnable_text_features
+                    if hasattr(self.model, 'is_ensemble') and self.model.is_ensemble:
+                        num_classes = self.model.num_classes
+                        num_prompts_per_class = self.model.num_prompts_per_class
+                        # Reshape from (C*P, D) to (C, P, D) and then average over P
+                        processed_learnable_text_features = learnable_text_features.view(num_classes, num_prompts_per_class, -1).mean(dim=1)
+
                     # Apply logit adjustment
                     if self.class_priors is not None and is_train:
                         output = output + self.logit_adj_tau * torch.log(self.class_priors + 1e-12)
@@ -122,13 +130,13 @@ class Trainer:
 
                     if is_train and self.mi_criterion is not None:
                         mi_weight = get_loss_weight(int(epoch_str), self.mi_warmup, self.mi_ramp, self.lambda_mi)
-                        mi_loss = self.mi_criterion(learnable_text_features, hand_crafted_text_features)
+                        mi_loss = self.mi_criterion(processed_learnable_text_features, hand_crafted_text_features)
                         loss += mi_weight * mi_loss
                         mi_losses.update(mi_loss.item(), target.size(0))
 
                     if is_train and self.dc_criterion is not None:
                         dc_weight = get_loss_weight(int(epoch_str), self.dc_warmup, self.dc_ramp, self.lambda_dc)
-                        dc_loss = self.dc_criterion(learnable_text_features)
+                        dc_loss = self.dc_criterion(processed_learnable_text_features)
                         loss += dc_weight * dc_loss
                         dc_losses.update(dc_loss.item(), target.size(0))
 
