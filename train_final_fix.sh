@@ -8,7 +8,7 @@ python main.py \
     --batch-size 8 \
     --optimizer AdamW \
     --lr 1e-5 \
-    --lr-image-encoder 0.0 \
+    --lr-image-encoder 1e-6 \
     --lr-prompt-learner 1e-5 \
     --lr-adapter 1e-5 \
     --weight-decay 0.0001 \
