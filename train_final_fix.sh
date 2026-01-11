@@ -8,8 +8,8 @@ python main.py \
     --batch-size 8 \
     --lr 1e-5 \
     --lr-image-encoder 0.0 \
-    --lr-prompt-learner 1e-5 \
-    --lr-adapter 1e-5 \
+    --lr-prompt-learner 1e-6 \
+    --lr-adapter 1e-6 \
     --weight-decay 0.0001 \
     --momentum 0.9 \
     --milestones 20 35 \
