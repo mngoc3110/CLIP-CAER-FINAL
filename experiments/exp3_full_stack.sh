@@ -16,7 +16,7 @@ echo "=========================================="
 
 python main.py \
     --mode train \
-    --exper-name "exp3_full_stack" \
+    --exper-name "exp3_full_stack_gamma_3" \
     --dataset RAER \
     --gpu 0 \
     --workers 4 \
