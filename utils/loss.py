@@ -16,7 +16,7 @@ class FocalLoss(nn.Module):
         gamma: Focusing parameter (default 2.0)
         reduction: 'mean', 'sum', or 'none'
     """
-    def __init__(self, alpha=None, gamma=2.0, reduction='mean'):
+    def __init__(self, alpha=None, gamma=3.0, reduction='mean'):
         super(FocalLoss, self).__init__()
         self.gamma = gamma
         self.reduction = reduction
