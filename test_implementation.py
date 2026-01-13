@@ -111,9 +111,12 @@ def test_annotation_files():
     """Test that annotation files exist."""
     print("\nTesting annotation files...")
     files = [
-        ('RAER/annotation/train_80.txt', 'Training'),
-        ('RAER/annotation/val_20.txt', 'Validation'),
-        ('RAER/annotation/test.txt', 'Test')
+        # ('RAER/annotation/train_80.txt', 'Training'),
+        # ('RAER/annotation/val_20.txt', 'Validation'),
+        # ('RAER/annotation/test.txt', 'Test'),
+        ('/kaggle/input/raer-annot/annotation/train_80.txt', 'Training'),
+        ('/kaggle/input/raer-annot/annotation/val_20.txt', 'Validation'),
+        ('/kaggle/input/raer-annot/annotation/test.txt', 'Test'),
     ]
 
     all_ok = True
