@@ -15,7 +15,7 @@ python main.py \
     --gpu 0 \
     --workers 4 \
     --seed 42 \
-   --root-dir /kaggle/input/raer-video-emotion-dataset/RAER \
+   --root-dir /kaggle/input/raer-video-emotion-dataset/ \
     --train-annotation /kaggle/input/raer-annot/annotation/train_80.txt \
     --val-annotation /kaggle/input/raer-annot/annotation/val_20.txt \
     --test-annotation /kaggle/input/raer-annot/annotation/test.txt \
