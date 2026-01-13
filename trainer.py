@@ -186,20 +186,33 @@ class Trainer:
                     progress.display(i)
         
         # Calculate epoch-level metrics
-        all_preds = torch.cat(all_preds)
-        all_targets = torch.cat(all_targets)
-        
-        cm = confusion_matrix(all_targets.numpy(), all_preds.numpy())
+        all_preds = torch.cat(all_preds).numpy()
+        all_targets = torch.cat(all_targets).numpy()
+
+        cm = confusion_matrix(all_targets, all_preds)
         war = war_meter.avg # Weighted Average Recall (WAR) is just the overall accuracy
-        
-        # Unweighted Average Recall (UAR)
-        class_acc = cm.diagonal() / (cm.sum(axis=1) + 1e-6) # Add epsilon to avoid division by zero
-        uar = np.nanmean(class_acc) * 100
+
+        # Per-class recall and UAR
+        class_recall = cm.diagonal() / (cm.sum(axis=1) + 1e-9)
+        uar = np.nanmean(class_recall) * 100
+
+        # Detailed per-class logging
+        class_names = ['Neutrality', 'Enjoyment', 'Confusion', 'Fatigue', 'Distraction']
 
         logging.info(f"{prefix} * WAR: {war:.3f} | UAR: {uar:.3f}")
+        logging.info(f"{prefix} Per-class Recall:")
+
+        for i, (name, recall) in enumerate(zip(class_names, class_recall)):
+            count = cm.sum(axis=1)[i]
+            correct = cm.diagonal()[i]
+            logging.info(f"  Class {i} ({name:12s}): {recall*100:5.1f}% ({correct:3d}/{count:3d} samples)")
+
+        # Write to log file
         with open(self.log_txt_path, 'a') as f:
-            f.write('Current WAR: {war:.3f}'.format(war=war) + '\n')
-            f.write('Current UAR: {uar:.3f}'.format(uar=uar) + '\n')
+            f.write(f'Current WAR: {war:.3f}\n')
+            f.write(f'Current UAR: {uar:.3f}\n')
+            f.write(f'Per-class Recall: ' + ' '.join([f'{r*100:.1f}' for r in class_recall]) + '\n')
+
         return war, uar, losses.avg, cm
         
     def train_epoch(self, train_loader, epoch_num):

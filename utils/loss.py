@@ -6,26 +6,58 @@ from torch.distributions import normal
 
 class FocalLoss(nn.Module):
     """
-    Focal Loss for dense object detection.
+    Focal Loss for dense object detection with class balancing.
     A solution to address the problem of class imbalance.
+
+    Args:
+        alpha: Class weights (scalar or tensor of shape [num_classes])
+               If scalar, same weight for all classes.
+               If tensor, per-class weights for class balancing.
+        gamma: Focusing parameter (default 2.0)
+        reduction: 'mean', 'sum', or 'none'
     """
-    def __init__(self, alpha=0.25, gamma=2, reduction='mean'):
+    def __init__(self, alpha=None, gamma=2.0, reduction='mean'):
         super(FocalLoss, self).__init__()
-        self.alpha = alpha
         self.gamma = gamma
         self.reduction = reduction
+
+        # Handle alpha (class weights)
+        if alpha is None:
+            self.alpha = None
+        elif isinstance(alpha, (float, int)):
+            self.alpha = alpha
+        else:
+            # alpha is a tensor of class weights
+            self.register_buffer('alpha', alpha)
 
     def forward(self, inputs, targets):
         """
         Forward pass.
-        :param inputs: (tensor) an float tensor of shape (N, C), where C is the number of classes.
-        :param targets: (tensor) an long tensor of shape (N,).
+        :param inputs: (tensor) logits of shape (N, C), where C is the number of classes.
+        :param targets: (tensor) ground truth labels of shape (N,).
         :return: (tensor) focal loss.
         """
+        # Compute cross-entropy loss per sample
         ce_loss = F.cross_entropy(inputs, targets, reduction='none')
-        pt = torch.exp(-ce_loss)
-        focal_loss = self.alpha * (1 - pt) ** self.gamma * ce_loss
 
+        # Compute pt (probability of true class)
+        pt = torch.exp(-ce_loss)
+
+        # Apply focal weight: (1 - pt)^gamma
+        focal_weight = (1 - pt) ** self.gamma
+
+        # Apply class weights (alpha)
+        if self.alpha is not None:
+            if isinstance(self.alpha, (float, int)):
+                alpha_t = self.alpha
+            else:
+                # Per-class weights: gather weight for each sample's true class
+                alpha_t = self.alpha[targets]
+            focal_loss = alpha_t * focal_weight * ce_loss
+        else:
+            focal_loss = focal_weight * ce_loss
+
+        # Apply reduction
         if self.reduction == 'mean':
             return focal_loss.mean()
         elif self.reduction == 'sum':

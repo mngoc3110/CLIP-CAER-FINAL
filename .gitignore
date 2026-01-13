@@ -1,5 +1,5 @@
 # Ignore dataset
-raer/
+RAER/
 
 # Ignore training outputs / checkpoints / logs
 outputs/

@@ -11,6 +11,59 @@ from dataloader.video_dataloader import train_data_loader, test_data_loader
 from models.Generate_Model import GenerateModel
 from models.Text import *
 from utils.utils import *
+from collections import Counter
+import numpy as np
+
+
+def get_class_weights_from_annotation(annotation_file: str, num_classes: int = 5, beta: float = 0.9999) -> torch.Tensor:
+    """
+    Compute class-balanced weights from annotation file using effective number of samples.
+
+    Args:
+        annotation_file: Path to annotation file (train.txt)
+        num_classes: Number of classes
+        beta: Hyperparameter for effective number (default 0.9999)
+
+    Returns:
+        Class weights tensor of shape (num_classes,)
+    """
+    # Read labels from annotation file
+    labels = []
+    with open(annotation_file, 'r') as f:
+        for line in f:
+            parts = line.strip().split()
+            if len(parts) >= 3:
+                # Labels are 1-indexed in file, convert to 0-indexed
+                label = int(parts[2]) - 1
+                if 0 <= label < num_classes:
+                    labels.append(label)
+
+    # Count samples per class
+    counter = Counter(labels)
+    cls_num_list = [counter.get(i, 0) for i in range(num_classes)]
+
+    # Compute effective number of samples (from Class-Balanced Loss paper)
+    effective_num = 1.0 - np.power(beta, cls_num_list)
+    weights = (1.0 - beta) / (np.array(effective_num) + 1e-8)
+
+    # Normalize weights so they sum to num_classes
+    weights = weights / weights.sum() * num_classes
+
+    print(f"\n{'='*60}")
+    print("CLASS DISTRIBUTION & WEIGHTS")
+    print(f"{'='*60}")
+    print(f"Annotation file: {annotation_file}")
+    print(f"Total samples: {len(labels)}")
+    print(f"\nPer-class statistics:")
+    class_names = ['Neutrality', 'Enjoyment', 'Confusion', 'Fatigue', 'Distraction']
+    for i in range(num_classes):
+        count = cls_num_list[i]
+        weight = weights[i]
+        percentage = (count / len(labels) * 100) if len(labels) > 0 else 0
+        print(f"  Class {i} ({class_names[i]:12s}): {count:4d} samples ({percentage:5.1f}%) → weight: {weight:.3f}")
+    print(f"{'='*60}\n")
+
+    return torch.FloatTensor(weights)
 
 
 def build_model(args: argparse.Namespace, input_text: list) -> torch.nn.Module:

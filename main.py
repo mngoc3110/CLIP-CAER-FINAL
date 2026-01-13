@@ -80,13 +80,13 @@ optim_group.add_argument('--gamma', type=float, default=0.1, help='Factor for le
 
 # --- Loss & Imbalance Handling ---
 loss_group = parser.add_argument_group('Loss & Imbalance Handling', 'Parameters for loss functions and imbalance handling')
-loss_group.add_argument('--lambda_mi', type=float, default=0.7, help='Weight for the Mutual Information loss.')
+loss_group.add_argument('--lambda_mi', type=float, default=0.02, help='Weight for the Mutual Information loss. Lower value (0.02) reduces interference with minority class learning.')
 loss_group.add_argument('--lambda_dc', type=float, default=1.2, help='Weight for the Decorrelation loss.')
-loss_group.add_argument('--mi-warmup', type=int, default=5, help='Warmup epochs for MI loss.')
-loss_group.add_argument('--mi-ramp', type=int, default=8, help='Ramp-up epochs for MI loss.')
+loss_group.add_argument('--mi-warmup', type=int, default=15, help='Warmup epochs for MI loss. Increased to reduce early training interference.')
+loss_group.add_argument('--mi-ramp', type=int, default=25, help='Ramp-up epochs for MI loss. Gradual increase for stability.')
 loss_group.add_argument('--dc-warmup', type=int, default=5, help='Warmup epochs for DC loss.')
 loss_group.add_argument('--dc-ramp', type=int, default=10, help='Ramp-up epochs for DC loss.')
-loss_group.add_argument('--class-balanced-loss', action='store_true', help='Use class-balanced loss.')
+loss_group.add_argument('--class-balanced-loss', action='store_true', help='Use class-balanced Focal Loss with automatic class weighting.')
 loss_group.add_argument('--logit-adj', action='store_true', help='Use logit adjustment.')
 loss_group.add_argument('--logit-adj-tau', type=float, default=0.5, help='Temperature for logit adjustment.')
 loss_group.add_argument('--use-weighted-sampler', action='store_true', help='Use WeightedRandomSampler.')
@@ -189,13 +189,20 @@ def run_training(args: argparse.Namespace) -> None:
 
     # Loss and optimizer
     class_counts = get_class_counts(args.train_annotation)
-    
+
     if args.label_smoothing > 0:
         criterion = LSR2(e=args.label_smoothing, label_mode='class_descriptor').to(args.device)
     elif args.class_balanced_loss:
-        print("=> Using FocalLoss as the class-balanced loss.")
-        # Using Focal Loss. Alpha can be tuned, 0.25 is a common starting point.
-        criterion = FocalLoss(alpha=0.25, gamma=2).to(args.device)
+        print("=> Using Class-Balanced Focal Loss.")
+        # Compute class weights from training data
+        from utils.builders import get_class_weights_from_annotation
+        class_weights = get_class_weights_from_annotation(
+            args.train_annotation,
+            num_classes=len(class_names),
+            beta=0.9999
+        )
+        criterion = FocalLoss(alpha=class_weights.to(args.device), gamma=2.0).to(args.device)
+        print(f"=> Focal Loss initialized with class weights: {class_weights.tolist()}")
     else:
         criterion = nn.CrossEntropyLoss().to(args.device)
 
