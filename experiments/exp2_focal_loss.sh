@@ -22,7 +22,7 @@ python main.py \
     --bounding-box-face /kaggle/input/raer-video-emotion-dataset/RAER/bounding_box/face.json \
     --bounding-box-body /kaggle/input/raer-video-emotion-dataset/RAER/bounding_box/body.json \
     --epochs 30 \
-    --batch-size 8 \
+    --batch-size 16 \
     --print-freq 10 \
     --use-amp \
     --grad-clip 1.0 \
