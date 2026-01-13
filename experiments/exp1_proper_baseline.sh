@@ -15,13 +15,13 @@ python main.py \
     --gpu 0 \
     --workers 4 \
     --seed 42 \
-    --root-dir RAER \
-    --train-annotation RAER/annotation/train_80.txt \
-    --val-annotation RAER/annotation/val_20.txt \
-    --test-annotation RAER/annotation/test.txt \
+   --root-dir /kaggle/input/raer-video-emotion-dataset/RAER \
+    --train-annotation /kaggle/input/raer-annot/annotation/train_80.txt \
+    --val-annotation /kaggle/input/raer-annot/annotation/val_20.txt \
+    --test-annotation /kaggle/input/raer-annot/annotation/test.txt \
     --clip-path ViT-B/32 \
-    --bounding-box-face RAER/bounding_box/face.json \
-    --bounding-box-body RAER/bounding_box/body.json \
+    --bounding-box-face /kaggle/input/raer-video-emotion-dataset/RAER/bounding_box/face.json \
+    --bounding-box-body /kaggle/input/raer-video-emotion-dataset/RAER/bounding_box/body.json \
     --epochs 30 \
     --batch-size 8 \
     --print-freq 10 \
